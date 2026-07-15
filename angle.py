@@ -9,9 +9,11 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
     3. KD-Tree를 사용하여 selected_ending_point에 가까운 voxel을 찾고 무게중심(centroid) 계산.
     4. selected_ending_point, previous_node, centroid를 포함하는 평면을 생성하여 voxel을 분할.
     5. 두 그룹의 무게중심(centroid) 계산.
-    6. 기존 edge의 실제 길이를 계산하여 0.5배 만큼 떨어진 위치에 새로운 노드 위치 계산.
+    6. 기존 edge의 실제 길이를 계산하여 0.4배 만큼 떨어진 위치에 새로운 노드 위치 계산.
     7. new_node_1, new_node_2를 포함하는 voxel의 중심으로 변환.
     8. G는 변경하지 않고, selected_ending_point, previous_ending_point, new_node_1, new_node_2 좌표 반환.
+
+    위 과정이 실패할 경우, 다음 index의 노드에서 반복
 
     :param G: 네트워크 그래프
     :param freespace_mask: 자유 공간 마스크 (1: 자유 공간, 0: 장애물)
