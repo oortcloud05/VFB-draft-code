@@ -129,7 +129,7 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size):
 
         # 기존 edge의 실제 길이 계산
         edge_length = np.linalg.norm(selected_point_pos - previous_node_pos)
-        move_distance = 0.6 * edge_length  # 기존 edge 길이의 0.4배
+        move_distance = 0.4 * edge_length  # 기존 edge 길이의 0.4배
 
         # 새로운 노드의 좌표 계산
         new_node_1_pos = (
