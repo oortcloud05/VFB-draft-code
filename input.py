@@ -1,7 +1,6 @@
 import numpy as np
 import networkx as nx
 
-
 # 모든 단위는 cm scale
 
 # 노드의 좌표 (예: 5개의 노드, 0부터 4까지)
