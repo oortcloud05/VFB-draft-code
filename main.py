@@ -44,9 +44,13 @@ initial_node_ids = set(G.nodes)
 # 5. 반복하며 VFB method 적용 및 free space update
 for _ in range(30):
     # 새로운 가지의 ending point 위치 계산
-    selected_point_pos, previous_node_pos, new_node_1_pos, new_node_2_pos = bifurcation(
-        G, freespace_mask, voxel_coords, voxel_resolution
-    )
+    (
+        selected_point_pos,
+        previous_node_pos,
+        new_node_1_pos,
+        new_node_2_pos,
+        new_diameter,
+    ) = bifurcation(G, freespace_mask, voxel_coords, voxel_resolution)
 
     if selected_point_pos is None:
         print("No more branching possible.")
@@ -67,12 +71,6 @@ for _ in range(30):
 
     new_node_1 = max(G.nodes) + 1
     new_node_2 = new_node_1 + 1
-
-    # 새로운 가지의 diameter 계산
-    parent_diameter = G.edges.get((previous_node_id, selected_node_id), {}).get(
-        "diameter", 1.0
-    )
-    new_diameter = parent_diameter * 0.8
 
     # 새로운 가지를 그래프에 추가
     G.add_node(new_node_1, pos=tuple(new_node_1_pos))
