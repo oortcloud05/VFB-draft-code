@@ -1,9 +1,12 @@
 import numpy as np
 
-def update_freespace(start, end, diameter, voxel_coords, voxel_resolution, freespace_mask):
+
+def update_freespace(
+    start, end, diameter, voxel_coords, voxel_resolution, freespace_mask
+):
     """
     하나의 원통형 edge가 지나가는 voxel을 찾아 해당 voxel의 freespace_mask 값을 0(False)로 설정.
-    
+
     :param start: (x, y, z) - 원통형 edge의 시작점 좌표
     :param end: (x, y, z) - 원통형 edge의 끝점 좌표
     :param diameter: float - 원통의 지름 (edge의 두께)
@@ -28,5 +31,5 @@ def update_freespace(start, end, diameter, voxel_coords, voxel_resolution, frees
         distances = np.linalg.norm(voxel_coords - point, axis=1)
         inside_voxel = distances < radius
         freespace_mask[inside_voxel] = False  # 해당 voxel을 장애물로 설정
-    
+
     return freespace_mask

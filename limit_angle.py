@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # 부모 branch와 자녀 branch 사이의 각도 제한
 def limit_angle(
     previous_node_pos,
@@ -62,3 +63,35 @@ def limit_angle(
 
     # 최종적으로 보정된 new node의 position 출력
     return selected_point_pos + adjusted_new_unit_vector * new_length
+
+
+# 부모 branch와 자녀 branch 사이 각도 계산
+def calculate_branch_angle(
+    previous_node_pos,
+    selected_point_pos,
+    new_node_pos,
+):
+
+    previous_node_pos = np.asarray(previous_node_pos, dtype=float)
+    selected_point_pos = np.asarray(selected_point_pos, dtype=float)
+    new_node_pos = np.asarray(new_node_pos, dtype=float)
+
+    parent_vector = selected_point_pos - previous_node_pos
+    child_vector = new_node_pos - selected_point_pos
+
+    parent_length = np.linalg.norm(parent_vector)
+    child_length = np.linalg.norm(child_vector)
+
+    if np.isclose(parent_length, 0.0) or np.isclose(child_length, 0.0):
+        return np.nan
+
+    parent_unit_vector = parent_vector / parent_length
+    child_unit_vector = child_vector / child_length
+
+    cos_angle = np.clip(
+        np.dot(parent_unit_vector, child_unit_vector),
+        -1.0,
+        1.0,
+    )
+
+    return np.degrees(np.arccos(cos_angle))

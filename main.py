@@ -5,10 +5,12 @@ import networkx as nx
 from input import G
 from freespace import update_freespace
 from angle import bifurcation
+from limit_angle import calculate_branch_angle
+
 
 # 1. 3D 공간 설정
 space_size = (10, 10, 10)
-voxel_resolution = 0.05
+voxel_resolution = 0.1
 
 
 # 2. voxel 중심 좌표 계산
@@ -35,8 +37,12 @@ for start_node, end_node, attr in G.edges(data=True):
     )
 
 
+## 초기 구조와 VFB에서 새로 생성된 branch를 구분하기 위한 노드 목록
+initial_node_ids = set(G.nodes)
+
+
 # 5. 반복하며 VFB method 적용 및 free space update
-for _ in range(20):
+for _ in range(30):
     # 새로운 가지의 ending point 위치 계산
     selected_point_pos, previous_node_pos, new_node_1_pos, new_node_2_pos = bifurcation(
         G, freespace_mask, voxel_coords, voxel_resolution
@@ -133,7 +139,7 @@ ax.set_ylim([0, space_size[1]])
 ax.set_zlim([0, space_size[2]])
 
 
-# 축의 비율을 동일하게 설정 (equal aspect ratio)**
+# 축의 비율을 동일하게 설정 (equal aspect ratio)
 def set_axes_equal(ax):
     """x, y, z 축을 동일한 크기로 설정"""
     limits = np.array([ax.get_xlim(), ax.get_ylim(), ax.get_zlim()])
@@ -152,5 +158,95 @@ ax.set_xlabel("X")
 ax.set_ylabel("Y")
 ax.set_zlabel("Z")
 ax.legend().remove()
+
+
+# 번외) branch 각도 분포 히스토그램
+
+
+## VFB에서 새로 생성된 모든 자녀 branch의 최종 각도 수집
+branch_angles = []
+
+for selected_node_id, new_node_id in G.edges():
+    # 초기 입력 구조에 포함된 edge는 제외
+    if new_node_id in initial_node_ids:
+        continue
+
+    # selected node의 부모 노드 찾기
+    previous_node_id = next(
+        G.predecessors(selected_node_id),
+        None,
+    )
+
+    # 부모 branch가 없으면 각도를 계산할 수 없음
+    if previous_node_id is None:
+        continue
+
+    previous_node_pos = np.array(G.nodes[previous_node_id]["pos"])
+    selected_point_pos = np.array(G.nodes[selected_node_id]["pos"])
+    new_node_pos = np.array(G.nodes[new_node_id]["pos"])
+
+    angle_deg = calculate_branch_angle(
+        previous_node_pos,
+        selected_point_pos,
+        new_node_pos,
+    )
+
+    # 길이가 0인 branch에서 발생하는 nan 제외
+    if np.isfinite(angle_deg):
+        branch_angles.append(angle_deg)
+
+branch_angles = np.asarray(branch_angles)
+
+## 히스토그램 작성
+if len(branch_angles) > 0:
+    angle_bins = np.arange(0, 185, 2)
+
+    # 전체 branch 중 각 구간이 차지하는 비율
+    histogram_weights = np.ones(len(branch_angles)) / len(branch_angles) * 100
+
+    hist_fig, hist_ax = plt.subplots(figsize=(9, 6))
+
+    hist_ax.hist(
+        branch_angles,
+        bins=angle_bins,
+        weights=histogram_weights,
+        color="steelblue",
+        edgecolor="black",
+        alpha=0.85,
+    )
+
+    # 제한 각도 표시
+    hist_ax.axvline(
+        60,
+        color="red",
+        linestyle="--",
+        linewidth=2,
+        label="60-degree limit",
+    )
+
+    hist_ax.set_xlim(0, 180)
+    hist_ax.set_ylim(0, 100)
+    hist_ax.set_xticks(np.arange(0, 181, 20))
+
+    hist_ax.set_xlabel("Branch angle (degrees)")
+    hist_ax.set_ylabel("Percentage of branches (%)")
+    hist_ax.set_title("Final Branch Angle Distribution")
+
+    hist_ax.grid(
+        axis="y",
+        alpha=0.3,
+    )
+    hist_ax.legend()
+
+    hist_fig.tight_layout()
+
+    print(f"Number of branches: {len(branch_angles)}")
+    print(f"Mean angle: {np.mean(branch_angles):.2f} degrees")
+    print(f"Maximum angle: {np.max(branch_angles):.2f} degrees")
+    print(f"Branches over 60 degrees: {np.sum(branch_angles > 60.0)}")
+
+else:
+    print("No valid branch angles were collected.")
+
 
 plt.show()
