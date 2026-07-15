@@ -50,7 +50,7 @@ for _ in range(30):
         new_node_1_pos,
         new_node_2_pos,
         new_diameter,
-    ) = bifurcation(G, freespace_mask, voxel_coords, voxel_resolution)
+    ) = bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size)
 
     if selected_point_pos is None:
         print("No more branching possible.")
