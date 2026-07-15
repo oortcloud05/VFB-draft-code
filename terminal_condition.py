@@ -8,7 +8,6 @@ def branch_length_valid(
     min_branch_length=0.1,
 ):
     branch_length = np.linalg.norm(new_node_pos - selected_point_pos)
-
     return branch_length >= min_branch_length
 
 
