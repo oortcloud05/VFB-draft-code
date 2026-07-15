@@ -6,6 +6,7 @@ from terminal_condition import (
     branch_diameter_valid,
     ending_point_at_boundary,
 )
+from voxel_candidate import select_voxel_pair
 
 
 def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size):
@@ -131,7 +132,7 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size):
         edge_length = np.linalg.norm(selected_point_pos - previous_node_pos)
         move_distance = 0.4 * edge_length  # 기존 edge 길이의 0.4배
 
-        # 새로운 노드의 좌표 계산
+        # 새로운 노드의 좌표 계산 (각도 보정 이전)
         new_node_1_pos = (
             selected_point_pos
             + (group1_centroid - selected_point_pos)
@@ -145,7 +146,21 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size):
             * move_distance
         )
 
-        # 최대각(60도) 보정
+        # terminal condition 1: 보정 전 가지 길이 검사
+        if not branch_length_valid(
+            selected_point_pos,
+            new_node_1_pos,
+            min_branch_length=0.1,
+        ):
+            continue
+        if not branch_length_valid(
+            selected_point_pos,
+            new_node_2_pos,
+            min_branch_length=0.1,
+        ):
+            continue
+
+        # 60도 보정 이후의 raw node 계산
         new_node_1_pos = limit_angle(
             previous_node_pos,
             selected_point_pos,
@@ -159,25 +174,26 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size):
             max_angle_deg=60.0,
         )
 
-        # 새로운 노드를 포함하는 voxel 중심 좌표로 변환 (중심 좌표 기준 반올림)
-        new_node_1_pos = (
-            np.round(new_node_1_pos / voxel_resolution - 0.5) + 0.5
-        ) * voxel_resolution
-        new_node_2_pos = (
-            np.round(new_node_2_pos / voxel_resolution - 0.5) + 0.5
-        ) * voxel_resolution
-
-        # terminal condition 1: 가지 길이
-        if not branch_length_valid(
-            selected_point_pos,
+        # 최적 노드 선택
+        selected_voxel_pair = select_voxel_pair(
             new_node_1_pos,
-        ):
-            continue
-        if not branch_length_valid(
-            selected_point_pos,
             new_node_2_pos,
-        ):
+            previous_node_pos,
+            selected_point_pos,
+            voxel_coords,
+            freespace_mask,
+            voxel_resolution,
+            space_size,
+            search_layers=1,
+            min_branch_length=0.1,
+            max_angle_deg=60.0,
+        )
+
+        # 두 자녀 중 하나라도 유효한 voxel을 찾지 못하면 다음 ending point 시도
+        if selected_voxel_pair is None:
             continue
+
+        new_node_1_pos, new_node_2_pos = selected_voxel_pair
 
         # G를 수정하지 않고, 필요한 좌표만 반환
         return (
