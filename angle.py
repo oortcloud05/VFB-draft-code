@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.spatial import KDTree
 from limit_angle import limit_angle
+from terminal_condition import branch_length_valid
+from terminal_condition import branch_diameter_valid
 
 
 def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
@@ -47,18 +49,27 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
 
     # 각 Ending Point를 순서대로 시도
     for selected_index, selected_ending_point in enumerate(ending_points):
+        # selected_ending_point에 연결된 이전 노드 찾기
+        previous_node = next(G.predecessors(selected_ending_point), None)
+
+        if previous_node is None:
+            continue
+
+        # terminal condition 2: 가지 직경 검사
+        parent_diameter = G.edges[
+            previous_node,
+            selected_ending_point,
+        ].get("diameter", 1.0)
+        new_diameter = parent_diameter * 0.8
+        if not branch_diameter_valid(new_diameter):
+            continue
+
         # 현재 Ending Point에 배정된 voxel 선택
         selected_mask = nearest_ending_index == selected_index
         selected_voxels = free_voxel_coords[selected_mask]
 
         # 배정된 voxel이 없으면 다음 Ending Point 시도
         if len(selected_voxels) == 0:
-            continue
-
-        # selected_ending_point에 연결된 이전 노드 찾기
-        previous_node = next(G.predecessors(selected_ending_point), None)
-
-        if previous_node is None:
             continue
 
         previous_node_pos = np.array(G.nodes[previous_node]["pos"])
@@ -138,6 +149,18 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
         new_node_2_pos = (
             np.round(new_node_2_pos / voxel_resolution - 0.5) + 0.5
         ) * voxel_resolution
+
+        # terminal condition 1: 가지 길이
+        if not branch_length_valid(
+            selected_point_pos,
+            new_node_1_pos,
+        ):
+            continue
+        if not branch_length_valid(
+            selected_point_pos,
+            new_node_2_pos,
+        ):
+            continue
 
         # G를 수정하지 않고, 필요한 좌표만 반환
         return selected_point_pos, previous_node_pos, new_node_1_pos, new_node_2_pos
