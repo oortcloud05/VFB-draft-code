@@ -2,6 +2,7 @@ import numpy as np
 from scipy.spatial import KDTree
 from limit_angle import limit_angle
 
+
 def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
     """
     1. G에서 Ending Points(Out-degree = 0인 노드) 찾기.
@@ -29,7 +30,7 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
 
     if not ending_points:
         return None, None, None, None  # Ending Points가 없으면 반환
-        
+
     # freespace 좌표 추출
     free_voxel_coords = voxel_coords[freespace_mask]
 
@@ -46,7 +47,6 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
 
     # 각 Ending Point를 순서대로 시도
     for selected_index, selected_ending_point in enumerate(ending_points):
-        
         # 현재 Ending Point에 배정된 voxel 선택
         selected_mask = nearest_ending_index == selected_index
         selected_voxels = free_voxel_coords[selected_mask]
@@ -63,21 +63,21 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
 
         previous_node_pos = np.array(G.nodes[previous_node]["pos"])
         selected_point_pos = np.array(G.nodes[selected_ending_point]["pos"])
-    
+
         # 선택된 voxel들의 무게중심(centroid) 계산
         centroid = np.mean(selected_voxels, axis=0)
-    
+
         # 평면의 법선 벡터 계산 (previous_node, selected_point, centroid 포함)
         v1 = selected_point_pos - previous_node_pos
         v2 = centroid - previous_node_pos
         normal_vector = np.cross(v1, v2)  # 두 벡터의 외적을 사용해 법선 벡터 계산
-        normal_vector = normal_vector / np.linalg.norm(normal_vector)  # 단위 벡터화
+        normal_length = np.linalg.norm(normal_vector)
 
         # 평면을 만들 수 없으면 다음 Ending Point 시도
         if np.isclose(normal_length, 0.0):
             continue
 
-        normal_vector = normal_vector / normal_length
+        normal_vector = normal_vector / normal_length  # 단위 벡터화
 
         # voxel을 평면 기준으로 두 그룹으로 분할
         distances_to_plane = np.dot(selected_voxels - centroid, normal_vector)
@@ -94,10 +94,9 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
         group2_centroid = np.mean(group2_voxels, axis=0)
 
         # 자녀 방향을 계산할 수 없으면 다음 Ending Point 시도
-        if (
-            np.isclose(np.linalg.norm(group1_centroid - selected_point_pos), 0.0)
-            or np.isclose(np.linalg.norm(group2_centroid - selected_point_pos), 0.0)
-        ):
+        if np.isclose(
+            np.linalg.norm(group1_centroid - selected_point_pos), 0.0
+        ) or np.isclose(np.linalg.norm(group2_centroid - selected_point_pos), 0.0):
             continue
 
         # 기존 edge의 실제 길이 계산
@@ -119,7 +118,7 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
         )
 
         # 최대각(60도) 보정
-            new_node_1_pos = limit_angle(
+        new_node_1_pos = limit_angle(
             previous_node_pos,
             selected_point_pos,
             new_node_1_pos,
