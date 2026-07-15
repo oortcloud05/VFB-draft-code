@@ -27,12 +27,13 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
 
     if not ending_points:
         return None, None, None, None  # Ending Points가 없으면 반환
-
-    # 가장 index가 작은 ending point 선택
-    selected_ending_point = ending_points[0]  # 가장 index가 작은 노드 선택
-
+        
     # freespace 좌표 추출
     free_voxel_coords = voxel_coords[freespace_mask]
+
+    # freespace에 남은 voxel이 없는 경우, branching 종료
+    if len(free_voxel_coords) == 0:
+        return None, None, None, None
 
     # KD-Tree 생성 (Ending Points를 트리에 저장)
     ending_positions = np.array([G.nodes[ep]["pos"] for ep in ending_points])
@@ -41,82 +42,104 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
     # 각 자유 voxel에 대해 가장 가까운 Ending Point 찾기
     _, nearest_ending_index = kdtree.query(free_voxel_coords)
 
-    # selected_ending_point에 가장 가까운 voxel만 선택
-    selected_mask = nearest_ending_index == ending_points.index(selected_ending_point)
-    selected_voxels = free_voxel_coords[selected_mask]
+    # 각 Ending Point를 순서대로 시도
+    for selected_index, selected_ending_point in enumerate(ending_points):
+        
+        # 현재 Ending Point에 배정된 voxel 선택
+        selected_mask = nearest_ending_index == selected_index
+        selected_voxels = free_voxel_coords[selected_mask]
 
-    if len(selected_voxels) == 0:
-        return None, None, None, None  # 선택된 voxel이 없으면 반환
+        # 배정된 voxel이 없으면 다음 Ending Point 시도
+        if len(selected_voxels) == 0:
+            continue
 
-    # 선택된 voxel들의 무게중심(centroid) 계산
-    centroid = np.mean(selected_voxels, axis=0)
+        # selected_ending_point에 연결된 이전 노드 찾기
+        previous_node = next(G.predecessors(selected_ending_point), None)
 
-    # selected_ending_point에 연결된 이전 노드 찾기
-    previous_node = next(G.predecessors(selected_ending_point), None)
-    if previous_node is None:
-        return None, None, None, None  # 이전 노드가 없으면 반환
+        if previous_node is None:
+            continue
 
-    previous_node_pos = np.array(G.nodes[previous_node]["pos"])
-    selected_point_pos = np.array(G.nodes[selected_ending_point]["pos"])
+        previous_node_pos = np.array(G.nodes[previous_node]["pos"])
+        selected_point_pos = np.array(G.nodes[selected_ending_point]["pos"])
+    
+        # 선택된 voxel들의 무게중심(centroid) 계산
+        centroid = np.mean(selected_voxels, axis=0)
+    
+        # 평면의 법선 벡터 계산 (previous_node, selected_point, centroid 포함)
+        v1 = selected_point_pos - previous_node_pos
+        v2 = centroid - previous_node_pos
+        normal_vector = np.cross(v1, v2)  # 두 벡터의 외적을 사용해 법선 벡터 계산
+        normal_vector = normal_vector / np.linalg.norm(normal_vector)  # 단위 벡터화
 
-    # 평면의 법선 벡터 계산 (previous_node, selected_point, centroid 포함)
-    v1 = selected_point_pos - previous_node_pos
-    v2 = centroid - previous_node_pos
-    normal_vector = np.cross(v1, v2)  # 두 벡터의 외적을 사용해 법선 벡터 계산
-    normal_vector = normal_vector / np.linalg.norm(normal_vector)  # 단위 벡터화
+        # 평면을 만들 수 없으면 다음 Ending Point 시도
+        if np.isclose(normal_length, 0.0):
+            continue
 
-    # voxel을 평면 기준으로 두 그룹으로 분할
-    distances_to_plane = np.dot(selected_voxels - centroid, normal_vector)
+        normal_vector = normal_vector / normal_length
 
-    group1_voxels = selected_voxels[distances_to_plane >= 0]
-    group2_voxels = selected_voxels[distances_to_plane < 0]
+        # voxel을 평면 기준으로 두 그룹으로 분할
+        distances_to_plane = np.dot(selected_voxels - centroid, normal_vector)
 
-    # 각 그룹의 무게중심 계산
-    group1_centroid = np.mean(group1_voxels, axis=0) if len(group1_voxels) > 0 else None
-    group2_centroid = np.mean(group2_voxels, axis=0) if len(group2_voxels) > 0 else None
+        group1_voxels = selected_voxels[distances_to_plane >= 0]
+        group2_voxels = selected_voxels[distances_to_plane < 0]
 
-    if group1_centroid is None or group2_centroid is None:
-        return None, None, None, None
+        # 어느 한쪽 그룹이 비었으면 다음 Ending Point 시도
+        if len(group1_voxels) == 0 or len(group2_voxels) == 0:
+            continue
 
-    # 기존 edge의 실제 길이 계산
-    edge_length = np.linalg.norm(selected_point_pos - previous_node_pos)
-    move_distance = 0.4 * edge_length  # 기존 edge 길이의 0.4배
+        # 각 그룹의 무게중심 계산
+        group1_centroid = np.mean(group1_voxels, axis=0)
+        group2_centroid = np.mean(group2_voxels, axis=0)
 
-    # 새로운 노드의 좌표 계산
-    new_node_1_pos = (
-        selected_point_pos
-        + (group1_centroid - selected_point_pos)
-        / np.linalg.norm(group1_centroid - selected_point_pos)
-        * move_distance
-    )
-    new_node_2_pos = (
-        selected_point_pos
-        + (group2_centroid - selected_point_pos)
-        / np.linalg.norm(group2_centroid - selected_point_pos)
-        * move_distance
-    )
+        # 자녀 방향을 계산할 수 없으면 다음 Ending Point 시도
+        if (
+            np.isclose(np.linalg.norm(group1_centroid - selected_point_pos), 0.0)
+            or np.isclose(np.linalg.norm(group2_centroid - selected_point_pos), 0.0)
+        ):
+            continue
 
-    # 최대각(60도) 보정
-        new_node_1_pos = limit_angle(
-        previous_node_pos,
-        selected_point_pos,
-        new_node_1_pos,
-        max_angle_deg=60.0,
-    )
-    new_node_2_pos = limit_angle(
-        previous_node_pos,
-        selected_point_pos,
-        new_node_2_pos,
-        max_angle_deg=60.0,
-    )
+        # 기존 edge의 실제 길이 계산
+        edge_length = np.linalg.norm(selected_point_pos - previous_node_pos)
+        move_distance = 0.4 * edge_length  # 기존 edge 길이의 0.4배
 
-    # 새로운 노드를 포함하는 voxel 중심 좌표로 변환 (중심 좌표 기준 반올림)
-    new_node_1_pos = (
-        np.round(new_node_1_pos / voxel_resolution - 0.5) + 0.5
-    ) * voxel_resolution
-    new_node_2_pos = (
-        np.round(new_node_2_pos / voxel_resolution - 0.5) + 0.5
-    ) * voxel_resolution
+        # 새로운 노드의 좌표 계산
+        new_node_1_pos = (
+            selected_point_pos
+            + (group1_centroid - selected_point_pos)
+            / np.linalg.norm(group1_centroid - selected_point_pos)
+            * move_distance
+        )
+        new_node_2_pos = (
+            selected_point_pos
+            + (group2_centroid - selected_point_pos)
+            / np.linalg.norm(group2_centroid - selected_point_pos)
+            * move_distance
+        )
 
-    # G를 수정하지 않고, 필요한 좌표만 반환
-    return selected_point_pos, previous_node_pos, new_node_1_pos, new_node_2_pos
+        # 최대각(60도) 보정
+            new_node_1_pos = limit_angle(
+            previous_node_pos,
+            selected_point_pos,
+            new_node_1_pos,
+            max_angle_deg=60.0,
+        )
+        new_node_2_pos = limit_angle(
+            previous_node_pos,
+            selected_point_pos,
+            new_node_2_pos,
+            max_angle_deg=60.0,
+        )
+
+        # 새로운 노드를 포함하는 voxel 중심 좌표로 변환 (중심 좌표 기준 반올림)
+        new_node_1_pos = (
+            np.round(new_node_1_pos / voxel_resolution - 0.5) + 0.5
+        ) * voxel_resolution
+        new_node_2_pos = (
+            np.round(new_node_2_pos / voxel_resolution - 0.5) + 0.5
+        ) * voxel_resolution
+
+        # G를 수정하지 않고, 필요한 좌표만 반환
+        return selected_point_pos, previous_node_pos, new_node_1_pos, new_node_2_pos
+
+    # 모든 Ending Point의 분할이 실패한 경우에만 종료
+    return None, None, None, None
