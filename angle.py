@@ -1,11 +1,14 @@
 import numpy as np
 from scipy.spatial import KDTree
 from limit_angle import limit_angle
-from terminal_condition import branch_length_valid
-from terminal_condition import branch_diameter_valid
+from terminal_condition import (
+    branch_length_valid,
+    branch_diameter_valid,
+    ending_point_at_boundary,
+)
 
 
-def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
+def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size):
     """
     1. G에서 Ending Points(Out-degree = 0인 노드) 찾기.
     2. Ending Points 중 가장 index가 작은 노드를 선택.
@@ -22,6 +25,7 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
     :param freespace_mask: 자유 공간 마스크 (1: 자유 공간, 0: 장애물)
     :param voxel_coords: (N, 3) 형태의 voxel 중심 좌표 배열
     :param voxel_resolution: voxel 크기 (ex: 0.1)
+    :param space_size: 전체 voxel 공간의 크기
     :return: (selected_ending_point 좌표, previous_ending_point 좌표, new_node_1 voxel 중심 좌표, new_node_2 voxel 중심 좌표)
     """
 
@@ -55,15 +59,6 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
         if previous_node is None:
             continue
 
-        # terminal condition 2: 가지 직경 검사
-        parent_diameter = G.edges[
-            previous_node,
-            selected_ending_point,
-        ].get("diameter", 1.0)
-        new_diameter = parent_diameter * 0.8
-        if not branch_diameter_valid(new_diameter):
-            continue
-
         # 현재 Ending Point에 배정된 voxel 선택
         selected_mask = nearest_ending_index == selected_index
         selected_voxels = free_voxel_coords[selected_mask]
@@ -74,6 +69,23 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
 
         previous_node_pos = np.array(G.nodes[previous_node]["pos"])
         selected_point_pos = np.array(G.nodes[selected_ending_point]["pos"])
+
+        # terminal condition 3: ending point가 최외곽 voxel이면 bifurcation 금지
+        if ending_point_at_boundary(
+            selected_point_pos,
+            space_size,
+            voxel_resolution,
+        ):
+            continue
+
+        # terminal condition 2: 가지 직경 검사
+        parent_diameter = G.edges[
+            previous_node,
+            selected_ending_point,
+        ].get("diameter", 1.0)
+        new_diameter = parent_diameter * 0.8
+        if not branch_diameter_valid(new_diameter):
+            continue
 
         # 선택된 voxel들의 무게중심(centroid) 계산
         centroid = np.mean(selected_voxels, axis=0)
@@ -112,7 +124,7 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
 
         # 기존 edge의 실제 길이 계산
         edge_length = np.linalg.norm(selected_point_pos - previous_node_pos)
-        move_distance = 0.4 * edge_length  # 기존 edge 길이의 0.4배
+        move_distance = 0.6 * edge_length  # 기존 edge 길이의 0.4배
 
         # 새로운 노드의 좌표 계산
         new_node_1_pos = (
