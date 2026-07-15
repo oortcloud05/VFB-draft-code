@@ -8,10 +8,10 @@ from angle import bifurcation
 from limit_angle import calculate_branch_angle
 
 
-# 1. 3D 공간 설정
+# 1. 3D 공간 및 반복 설정
 space_size = (10, 10, 10)
 voxel_resolution = 0.1
-
+max_iterations = 30
 
 # 2. voxel 중심 좌표 계산
 x = np.arange(0, space_size[0], voxel_resolution) + voxel_resolution / 2
@@ -42,7 +42,7 @@ initial_node_ids = set(G.nodes)
 
 
 # 5. 반복하며 VFB method 적용 및 free space update
-for _ in range(30):
+for _ in range(max_iterations):
     # 새로운 가지의 ending point 위치 계산
     (
         selected_point_pos,
