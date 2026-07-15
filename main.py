@@ -261,14 +261,15 @@ if len(branch_angles) > 0:
 
     hist_fig.tight_layout()
 
+    print("===== Angle Overview =====")
     print(f"Number of branches: {len(branch_angles)}")
     print(f"Mean angle: {np.mean(branch_angles):.2f} degrees")
     print(f"Maximum angle: {np.max(branch_angles):.2f} degrees")
     print(f"Branches over 60 degrees: {np.sum(branch_angles > 60.0)}")
+    print("==========================")
 
 else:
     print("No valid branch angles were collected.")
 
 
-ax.legend().remove()
 plt.show()
