@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial import KDTree
-
+from limit_angle import limit_angle
 
 def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
     """
@@ -94,6 +94,20 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
         + (group2_centroid - selected_point_pos)
         / np.linalg.norm(group2_centroid - selected_point_pos)
         * move_distance
+    )
+
+    # 최대각(60도) 보정
+        new_node_1_pos = limit_angle(
+        previous_node_pos,
+        selected_point_pos,
+        new_node_1_pos,
+        max_angle_deg=60.0,
+    )
+    new_node_2_pos = limit_angle(
+        previous_node_pos,
+        selected_point_pos,
+        new_node_2_pos,
+        max_angle_deg=60.0,
     )
 
     # 새로운 노드를 포함하는 voxel 중심 좌표로 변환 (중심 좌표 기준 반올림)
