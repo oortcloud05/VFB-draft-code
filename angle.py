@@ -31,7 +31,20 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size):
 
     # Ending Points 찾기 (Out-degree = 0인 노드)
     ending_points = sorted(
-        [node for node in G.nodes if G.out_degree(node) == 0 and node != 0]
+        [
+            node
+            for node in G.nodes
+            if (
+                G.out_degree(node) == 0
+                and node != 0
+                and not ending_point_at_boundary(
+                    # terminal condition 3: ending point가 최외곽 voxel이면 bifurcation 금지
+                    G.nodes[node]["pos"],
+                    space_size,
+                    voxel_resolution,
+                )
+            )
+        ]
     )
 
     if not ending_points:
@@ -69,14 +82,6 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size):
 
         previous_node_pos = np.array(G.nodes[previous_node]["pos"])
         selected_point_pos = np.array(G.nodes[selected_ending_point]["pos"])
-
-        # terminal condition 3: ending point가 최외곽 voxel이면 bifurcation 금지
-        if ending_point_at_boundary(
-            selected_point_pos,
-            space_size,
-            voxel_resolution,
-        ):
-            continue
 
         # terminal condition 2: 가지 직경 검사
         parent_diameter = G.edges[
