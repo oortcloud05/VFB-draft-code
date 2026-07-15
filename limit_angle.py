@@ -76,20 +76,20 @@ def calculate_branch_angle(
     selected_point_pos = np.asarray(selected_point_pos, dtype=float)
     new_node_pos = np.asarray(new_node_pos, dtype=float)
 
-    parent_vector = selected_point_pos - previous_node_pos
-    child_vector = new_node_pos - selected_point_pos
+    previous_vector = selected_point_pos - previous_node_pos
+    new_vector = new_node_pos - selected_point_pos
 
-    parent_length = np.linalg.norm(parent_vector)
-    child_length = np.linalg.norm(child_vector)
+    previous_length = np.linalg.norm(previous_vector)
+    new_length = np.linalg.norm(new_vector)
 
-    if np.isclose(parent_length, 0.0) or np.isclose(child_length, 0.0):
+    if np.isclose(previous_length, 0.0) or np.isclose(new_length, 0.0):
         return np.nan
 
-    parent_unit_vector = parent_vector / parent_length
-    child_unit_vector = child_vector / child_length
+    previous_unit_vector = previous_vector / previous_length
+    new_unit_vector = new_vector / new_length
 
     cos_angle = np.clip(
-        np.dot(parent_unit_vector, child_unit_vector),
+        np.dot(previous_unit_vector, new_unit_vector),
         -1.0,
         1.0,
     )
