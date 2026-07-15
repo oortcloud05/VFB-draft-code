@@ -1,14 +1,12 @@
 import numpy as np
 
-
+# 부모 branch와 자녀 branch 사이의 각도 제한
 def limit_angle(
     previous_node_pos,
     selected_point_pos,
     new_node_pos,
     max_angle_deg=60.0,
 ):
-
-    # 부모 branch와 자녀 branch 사이의 각도 제한
 
     previous_node_pos = np.asarray(previous_node_pos, dtype=float)
     selected_point_pos = np.asarray(selected_point_pos, dtype=float)
