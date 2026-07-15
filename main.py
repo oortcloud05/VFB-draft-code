@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 from mpl_toolkits.mplot3d import Axes3D
 import networkx as nx
 from input import G
@@ -8,10 +9,13 @@ from angle import bifurcation
 from limit_angle import calculate_branch_angle
 
 
+start_time = time.perf_counter()
+
 # 1. 3D 공간 및 반복 설정
 space_size = (10, 10, 10)
 voxel_resolution = 0.1
-max_iterations = 30
+max_iterations = 100
+completed_iterations = 0
 
 # 2. voxel 중심 좌표 계산
 x = np.arange(0, space_size[0], voxel_resolution) + voxel_resolution / 2
@@ -96,6 +100,27 @@ for _ in range(max_iterations):
         freespace_mask,
     )
 
+    # bifurcation이 이루어진 횟수 +1
+    completed_iterations += 1
+
+
+# 계산에 걸린 시간 측정 (시각화 시간 제외)
+
+end_time = time.perf_counter()
+elapsed_time = end_time - start_time
+
+elapsed_minutes = int(elapsed_time // 60)
+elapsed_seconds = elapsed_time % 60
+
+print("\n===== Runtime Result =====")
+print(f"Voxel resolution: {voxel_resolution} cm")
+print(f"Number of voxels: {len(voxel_coords):,}")
+print(f"Requested iterations: {max_iterations}")
+print(f"Completed iterations: {completed_iterations}")
+print(f"Elapsed time: {elapsed_time:.3f} seconds")
+print(f"Elapsed time: {elapsed_minutes} min {elapsed_seconds:.3f} sec")
+print("==========================")
+
 
 # 6. 시각화
 fig = plt.figure(figsize=(12, 12))
@@ -155,11 +180,9 @@ set_axes_equal(ax)
 ax.set_xlabel("X")
 ax.set_ylabel("Y")
 ax.set_zlabel("Z")
-ax.legend().remove()
 
 
-# 번외) branch 각도 분포 히스토그램
-
+# branch 각도 분포 히스토그램
 
 ## VFB에서 새로 생성된 모든 자녀 branch의 최종 각도 수집
 branch_angles = []
@@ -247,4 +270,5 @@ else:
     print("No valid branch angles were collected.")
 
 
+ax.legend().remove()
 plt.show()
