@@ -31,14 +31,14 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
     )
 
     if not ending_points:
-        return None, None, None, None  # Ending Points가 없으면 반환
+        return None, None, None, None, None  # Ending Points가 없으면 반환
 
     # freespace 좌표 추출
     free_voxel_coords = voxel_coords[freespace_mask]
 
     # freespace에 남은 voxel이 없는 경우, branching 종료
     if len(free_voxel_coords) == 0:
-        return None, None, None, None
+        return None, None, None, None, None
 
     # KD-Tree 생성 (Ending Points를 트리에 저장)
     ending_positions = np.array([G.nodes[ep]["pos"] for ep in ending_points])
@@ -163,7 +163,13 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
             continue
 
         # G를 수정하지 않고, 필요한 좌표만 반환
-        return selected_point_pos, previous_node_pos, new_node_1_pos, new_node_2_pos
+        return (
+            selected_point_pos,
+            previous_node_pos,
+            new_node_1_pos,
+            new_node_2_pos,
+            new_diameter,
+        )
 
     # 모든 Ending Point의 분할이 실패한 경우에만 종료
-    return None, None, None, None
+    return None, None, None, None, None
