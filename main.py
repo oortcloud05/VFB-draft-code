@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import time
 from mpl_toolkits.mplot3d import Axes3D
 import networkx as nx
-from scipy.ndimage import binary_erosion
 from freespace import update_freespace
 from angle import bifurcation
 from limit_angle import calculate_branch_angle
