@@ -3,31 +3,97 @@ import matplotlib.pyplot as plt
 import time
 from mpl_toolkits.mplot3d import Axes3D
 import networkx as nx
-from input import G
+from scipy.ndimage import binary_erosion
 from freespace import update_freespace
 from angle import bifurcation
 from limit_angle import calculate_branch_angle
+from random_mass import generate_random_mass
+from random_mass import select_initial_trunk
 
 
 start_time = time.perf_counter()
 
-# 1. 3D 공간 및 반복 설정
-space_size = (10, 10, 10)
-voxel_resolution = 0.1
-max_iterations = 100
+# 1. 3D 공간 및 초기 설정
+space_size = np.asarray(
+    (10.0, 10.0, 10.0),
+    dtype=float,
+)
+voxel_resolution = 0.04
+max_iterations = 30
 completed_iterations = 0
 
+grid_shape = np.rint(space_size / voxel_resolution).astype(int)
+
 # 2. voxel 중심 좌표 계산
-x = np.arange(0, space_size[0], voxel_resolution) + voxel_resolution / 2
-y = np.arange(0, space_size[1], voxel_resolution) + voxel_resolution / 2
-z = np.arange(0, space_size[2], voxel_resolution) + voxel_resolution / 2
+x = (np.arange(grid_shape[0]) + 0.5) * voxel_resolution
+y = (np.arange(grid_shape[1]) + 0.5) * voxel_resolution
+z = (np.arange(grid_shape[2]) + 0.5) * voxel_resolution
 
-X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
-voxel_coords = np.vstack([X.ravel(), Y.ravel(), Z.ravel()]).T
+X, Y, Z = np.meshgrid(
+    x,
+    y,
+    z,
+    indexing="ij",
+)
+
+voxel_coords = np.column_stack(
+    [
+        X.ravel(),
+        Y.ravel(),
+        Z.ravel(),
+    ]
+)
+
+# 3. 무작위 단일 덩어리 형태의 free space 생성
+freespace_mask = generate_random_mass(
+    space_size=space_size,
+    voxel_resolution=voxel_resolution,
+    min_volume_ratio=0.15,
+    max_volume_ratio=0.40,
+    noise_strength=0.15,
+    noise_smoothness=0.7,
+    margin_voxels=2,
+    seed=None,
+)
+
+initial_organ_mask = freespace_mask.copy()
+
+organ_mask_3d = initial_organ_mask.reshape(tuple(grid_shape))
+
+# 랜덤 덩어리 위쪽에서 초기 가지 위치 선정
+start_pos, end_pos = select_initial_trunk(
+    organ_mask=initial_organ_mask,
+    voxel_coords=voxel_coords,
+    initial_length=1.2,
+)
 
 
-# 3. free space mask 생성
-freespace_mask = np.ones(voxel_coords.shape[0], dtype=bool)
+# 기존 그래프 초기화
+G = nx.DiGraph()
+
+G.add_node(
+    0,
+    pos=tuple(start_pos),
+)
+
+G.add_node(
+    1,
+    pos=tuple(end_pos),
+)
+
+G.add_edge(
+    0,
+    1,
+    diameter=0.75,
+    is_initial=True,
+)
+
+organ_volume_ratio = np.count_nonzero(freespace_mask) / freespace_mask.size
+
+print("\n=== Random Mass Result ===")
+print(f"Organ volume ratio: {organ_volume_ratio:.2%}")
+print(f"Organ voxels: {np.count_nonzero(freespace_mask):,}")
+print("==========================\n")
 
 
 # 4. 초기 가지 구조를 free space에 업데이트 -> 각 가지를 free space에서 반복하여 제거
@@ -54,8 +120,14 @@ for _ in range(max_iterations):
         new_node_1_pos,
         new_node_2_pos,
         new_diameter,
-    ) = bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size)
-
+    ) = bifurcation(
+        G,
+        freespace_mask,
+        voxel_coords,
+        voxel_resolution,
+        organ_mask_3d,
+        grid_shape,
+    )
     if selected_point_pos is None:
         print("No more branching possible.")
         break
@@ -126,16 +198,52 @@ print("==========================")
 fig = plt.figure(figsize=(12, 12))
 ax = fig.add_subplot(111, projection="3d")
 
-# 자유 공간과 가지 표시
-occupied_voxels = voxel_coords[~freespace_mask]
+
+# 무작위로 생성된 장기 전체 영역
+organ_voxels = voxel_coords[initial_organ_mask]
+
+# 장기 내부에서 혈관이 차지한 영역
+vascular_mask = initial_organ_mask & ~freespace_mask
+vascular_voxels = voxel_coords[vascular_mask]
+
+
+# 장기 모양 시각화
+# voxel이 너무 많으므로 일부만 추출해서 표시
+max_display_voxels = 150_000
+
+if len(organ_voxels) > max_display_voxels:
+    display_indices = np.random.default_rng(0).choice(
+        len(organ_voxels),
+        size=max_display_voxels,
+        replace=False,
+    )
+    displayed_organ_voxels = organ_voxels[display_indices]
+else:
+    displayed_organ_voxels = organ_voxels
+
 ax.scatter(
-    occupied_voxels[:, 0],
-    occupied_voxels[:, 1],
-    occupied_voxels[:, 2],
-    c="gray",
-    s=5,
-    alpha=0.5,
+    displayed_organ_voxels[:, 0],
+    displayed_organ_voxels[:, 1],
+    displayed_organ_voxels[:, 2],
+    c="lightblue",
+    s=2,
+    alpha=0.1,
+    label="Organ space",
 )
+
+
+# 혈관이 실제로 차지한 voxel 시각화
+if len(vascular_voxels) > 0:
+    ax.scatter(
+        vascular_voxels[:, 0],
+        vascular_voxels[:, 1],
+        vascular_voxels[:, 2],
+        c="gray",
+        s=4,
+        alpha=0.4,
+        label="Occupied by vessels",
+    )
+
 
 # G의 노드 & 엣지 좌표 가져오기
 for start_node, end_node in G.edges():
@@ -181,6 +289,11 @@ ax.set_xlabel("X")
 ax.set_ylabel("Y")
 ax.set_zlabel("Z")
 
+ax.legend(
+    loc="upper right",
+    framealpha=0.9,
+    markerscale=5,
+)
 
 # branch 각도 분포 히스토그램
 
@@ -261,7 +374,7 @@ if len(branch_angles) > 0:
 
     hist_fig.tight_layout()
 
-    print("===== Angle Overview =====")
+    print("\n===== Angle Overview =====")
     print(f"Number of branches: {len(branch_angles)}")
     print(f"Mean angle: {np.mean(branch_angles):.2f} degrees")
     print(f"Maximum angle: {np.max(branch_angles):.2f} degrees")

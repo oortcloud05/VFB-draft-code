@@ -8,6 +8,7 @@ def branch_length_valid(
     min_branch_length=0.1,
 ):
     branch_length = np.linalg.norm(new_node_pos - selected_point_pos)
+
     return branch_length >= min_branch_length
 
 
@@ -22,39 +23,59 @@ def branch_diameter_valid(
 # 3. 전체 voxel 공간의 boundary 도달 여부
 def ending_point_at_boundary(
     selected_point_pos,
-    space_size,
+    organ_mask_3d,
     voxel_resolution,
 ):
+
     selected_point_pos = np.asarray(
         selected_point_pos,
         dtype=float,
     )
-    space_size = np.asarray(
-        space_size,
-        dtype=float,
+
+    grid_shape = np.asarray(
+        organ_mask_3d.shape,
+        dtype=int,
     )
 
-    # 각 축에서 가장 바깥쪽 voxel의 중심 좌표
-    lower_boundary = np.full(
-        3,
-        voxel_resolution / 2,
-    )
-    upper_boundary = space_size - voxel_resolution / 2
+    voxel_index = np.rint(selected_point_pos / voxel_resolution - 0.5).astype(int)
 
-    tolerance = voxel_resolution * 1e-6
+    # 노드 자체가 전체 voxel 공간 밖에 있는 경우
+    if np.any(voxel_index < 0) or np.any(voxel_index >= grid_shape):
+        return True
 
-    at_lower_boundary = np.isclose(
-        selected_point_pos,
-        lower_boundary,
-        atol=tolerance,
-        rtol=0.0,
-    )
-    at_upper_boundary = np.isclose(
-        selected_point_pos,
-        upper_boundary,
-        atol=tolerance,
-        rtol=0.0,
+    x_index, y_index, z_index = voxel_index
+
+    # 노드 자체가 장기 외부인 경우
+    if not organ_mask_3d[x_index, y_index, z_index]:
+        return True
+
+    neighbor_offsets = np.array(
+        [
+            [-1, 0, 0],
+            [1, 0, 0],
+            [0, -1, 0],
+            [0, 1, 0],
+            [0, 0, -1],
+            [0, 0, 1],
+        ],
+        dtype=int,
     )
 
-    # x, y, z 중 하나라도 최외곽 voxel이면 True
-    return bool(np.any(at_lower_boundary | at_upper_boundary))
+    for offset in neighbor_offsets:
+        neighbor_index = voxel_index + offset
+
+        # 인접 voxel이 전체 정육면체 밖에 있는 경우
+        if np.any(neighbor_index < 0) or np.any(neighbor_index >= grid_shape):
+            return True
+
+        neighbor_x, neighbor_y, neighbor_z = neighbor_index
+
+        # 인접 voxel이 장기 외부인 경우
+        if not organ_mask_3d[
+            neighbor_x,
+            neighbor_y,
+            neighbor_z,
+        ]:
+            return True
+
+    return False

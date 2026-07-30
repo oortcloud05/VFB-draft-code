@@ -8,7 +8,14 @@ from terminal_condition import (
 )
 
 
-def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size):
+def bifurcation(
+    G,
+    freespace_mask,
+    voxel_coords,
+    voxel_resolution,
+    organ_mask_3d,
+    grid_shape,
+):
     """
     1. G에서 Ending Points(Out-degree = 0인 노드) 찾기.
     2. Ending Points 중 가장 index가 작은 노드를 선택.
@@ -40,7 +47,7 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size):
                 and not ending_point_at_boundary(
                     # terminal condition 3: ending point가 최외곽 voxel이면 bifurcation 금지
                     G.nodes[node]["pos"],
-                    space_size,
+                    organ_mask_3d,
                     voxel_resolution,
                 )
             )
@@ -130,6 +137,23 @@ def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution, space_size):
         # 기존 edge의 실제 길이 계산
         edge_length = np.linalg.norm(selected_point_pos - previous_node_pos)
         move_distance = 0.4 * edge_length  # 기존 edge 길이의 0.4배
+
+        parent_edge_data = G.edges[
+            previous_node,
+            selected_ending_point,
+        ]
+
+        is_initial_edge = parent_edge_data.get(
+            "is_initial",
+            False,
+        )
+
+        if is_initial_edge:
+            # 최초 분기에서 생성되는 두 가지만 길게 설정
+            move_distance = 3.0
+        else:
+            # 이후 모든 세대는 기존 상수 0.4 유지
+            move_distance = 0.4 * edge_length
 
         # 새로운 노드의 좌표 계산
         new_node_1_pos = (
