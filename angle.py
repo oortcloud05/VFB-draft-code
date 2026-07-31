@@ -136,7 +136,6 @@ def bifurcation(
 
         # 기존 edge의 실제 길이 계산
         edge_length = np.linalg.norm(selected_point_pos - previous_node_pos)
-        move_distance = 0.4 * edge_length  # 기존 edge 길이의 0.4배
 
         parent_edge_data = G.edges[
             previous_node,
