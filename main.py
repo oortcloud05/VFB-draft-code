@@ -17,11 +17,12 @@ space_size = np.asarray(
     (10.0, 10.0, 10.0),
     dtype=float,
 )
-voxel_resolution = 0.04
+voxel_resolution = 0.1
 max_iterations = 30
 completed_iterations = 0
 
 grid_shape = np.rint(space_size / voxel_resolution).astype(int)
+
 
 # 2. voxel 중심 좌표 계산
 x = (np.arange(grid_shape[0]) + 0.5) * voxel_resolution
@@ -43,20 +44,23 @@ voxel_coords = np.column_stack(
     ]
 )
 
+
 # 3. 무작위 단일 덩어리 형태의 free space 생성
 freespace_mask = generate_random_mass(
     space_size=space_size,
     voxel_resolution=voxel_resolution,
-    min_volume_ratio=0.15,
-    max_volume_ratio=0.40,
+    min_volume_ratio=0.01,
+    max_volume_ratio=0.9,
     noise_strength=0.15,
     noise_smoothness=0.7,
     margin_voxels=2,
     seed=None,
 )
 
+# 원래 장기 모양 보존
 initial_organ_mask = freespace_mask.copy()
 
+# 종료 판정용 mask 생성
 organ_mask_3d = initial_organ_mask.reshape(tuple(grid_shape))
 
 # 랜덤 덩어리 위쪽에서 초기 가지 위치 선정
@@ -66,8 +70,7 @@ start_pos, end_pos = select_initial_trunk(
     initial_length=1.2,
 )
 
-
-# 기존 그래프 초기화
+# 기존 그래프 초기화 (기존 input.py 대체)
 G = nx.DiGraph()
 
 G.add_node(
@@ -87,8 +90,8 @@ G.add_edge(
     is_initial=True,
 )
 
+# 생성된 장기 형상 통계 출력
 organ_volume_ratio = np.count_nonzero(freespace_mask) / freespace_mask.size
-
 print("\n=== Random Mass Result ===")
 print(f"Organ volume ratio: {organ_volume_ratio:.2%}")
 print(f"Organ voxels: {np.count_nonzero(freespace_mask):,}")
@@ -104,7 +107,6 @@ for start_node, end_node, attr in G.edges(data=True):
     freespace_mask = update_freespace(
         start_pos, end_pos, diameter, voxel_coords, voxel_resolution, freespace_mask
     )
-
 
 ## 초기 구조와 VFB에서 새로 생성된 branch를 구분하기 위한 노드 목록
 initial_node_ids = set(G.nodes)
@@ -197,14 +199,12 @@ print("==========================")
 fig = plt.figure(figsize=(12, 12))
 ax = fig.add_subplot(111, projection="3d")
 
-
 # 무작위로 생성된 장기 전체 영역
 organ_voxels = voxel_coords[initial_organ_mask]
 
 # 장기 내부에서 혈관이 차지한 영역
 vascular_mask = initial_organ_mask & ~freespace_mask
 vascular_voxels = voxel_coords[vascular_mask]
-
 
 # 장기 모양 시각화
 # voxel이 너무 많으므로 일부만 추출해서 표시
@@ -230,7 +230,6 @@ ax.scatter(
     label="Organ space",
 )
 
-
 # 혈관이 실제로 차지한 voxel 시각화
 if len(vascular_voxels) > 0:
     ax.scatter(
@@ -242,7 +241,6 @@ if len(vascular_voxels) > 0:
         alpha=0.4,
         label="Occupied by vessels",
     )
-
 
 # G의 노드 & 엣지 좌표 가져오기
 for start_node, end_node in G.edges():
