@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial import KDTree
-from intersection_0708 import avoid_intersection
+from intersection import avoid_intersection
 
 
 def bifurcation(G, freespace_mask, voxel_coords, voxel_resolution):
