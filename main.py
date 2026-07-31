@@ -2,9 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import networkx as nx
-from input_0708 import G
-from freespace_0708 import update_freespace
-from angle_0708 import bifurcation
+from input import G
+from freespace import update_freespace
+from angle import bifurcation
 
 
 # 1. 3D 공간 설정
