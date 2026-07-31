@@ -1,7 +1,6 @@
 ### V1(original)
 
-최종 말단점 결정 시 voxel 경계가 아닌 voxel 중심점을 기준으로 반올림하도록 수식 수정
-(angle.py line 99-105)
+최종 말단점 결정 시 voxel 경계가 아닌 voxel 중심점을 기준으로 반올림하도록 수식 수정 (angle.py line 99-105)
 
 
 
@@ -9,11 +8,11 @@
 
 1. avoid intersection 구현 시도
 
-- intersection.py
-centroid 계산 후, 후보 voxel 여러 개 탐색
-angle(최초 생성 가지와 각도 차이), endpoint(최초 말단점과 거리 차이), length(최초 생성 가지와 길이 차이) penalty 점수화하여 최적 말단점 선정
-
-- angle.py에 avoid_intersection() 추가
+	- intersection.py
+	centroid 계산 후, 후보 voxel 여러 개 탐색
+	angle(최초 생성 가지와 각도 차이), endpoint(최초 말단점과 거리 차이), length(최초 생성 가지와 길이 차이) penalty 점수화하여 최적 말단점 선정
+	
+	- angle.py에 avoid_intersection() 추가
 
 2. freespace.py 중간 주석
 
